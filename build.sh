@@ -141,9 +141,25 @@ EOF
 echo '[+]Stage 3: Installing device specific and environment packages'
 nspawn-exec apt update
 nspawn-exec apt install -y curl
-nspawn-exec sh -c "$(curl -fsSL https://repo.fossfrog.in/setup.sh)"
+if [ "$family" != "sm7325" ]; then
+    nspawn-exec sh -c "$(curl -fsSL https://repo.fossfrog.in/setup.sh)"
+    nspawn-exec apt install -y ${DPACKAGES}
+fi
 nspawn-exec apt install -y ${PACKAGES}
-nspawn-exec apt install -y ${DPACKAGES}
+
+# Install custom kernel debs for Nothing Phone (1)
+if [ "$family" == "sm7325" ]; then
+    # Grab the kernel files and install
+    curl -L https://github.com/Nonta72/spacewar-repo/raw/refs/heads/main/debs/linux-image-7.0.5_7.0.5-5_arm64.deb -o /tmp/linux-image.deb
+    curl -L https://github.com/Nonta72/spacewar-repo/raw/refs/heads/main/debs/linux-headers-7.0.5_7.0.5-5_arm64.deb -o /tmp/linux-headers.deb
+    curl -L https://github.com/Nonta72/spacewar-repo/raw/refs/heads/main/debs/linux-libc-dev_7.0.5-5_arm64.deb -o /tmp/linux-libc-dev.deb
+    cp /tmp/linux-*.deb ${ROOTFS}/tmp/
+    nspawn-exec dpkg -i /tmp/linux-image.deb /tmp/linux-headers.deb /tmp/linux-libc-dev.deb
+    # Grab the firmware files and install
+    curl -L https://github.com/Nonta72/spacewar-repo/raw/refs/heads/main/debs/firmware-nothing-spacewar.deb -o /tmp/nothing-firmware.deb
+    cp /tmp/nothing-firmware.deb ${ROOTFS}/tmp/
+    nspawn-exec dpkg -i /tmp/nothing-firmware.deb
+fi
 
 echo '[+]Stage 4: Adding some extra tweaks'
 if [ ! -e "${ROOTFS}/etc/repart.d/50-root.conf" ]
